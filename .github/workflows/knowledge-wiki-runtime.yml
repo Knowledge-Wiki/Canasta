@@ -56,10 +56,13 @@ jobs:
           set -euo pipefail
           python3 knowledge-wiki/verify-php-scope.py "$RUNTIME_IMAGE" validation/php-scope.json \
             2>&1 | tee validation/php-scope.log
-      - name: Verify PHP and web requests offline
+      - name: Verify baseline and patched PHP through CLI and Apache/FPM
         shell: bash
         run: |
           set -euo pipefail
+          bash knowledge-wiki/verify-runtime-image.sh \
+            ghcr.io/canastawiki/canasta@sha256:e2d3f9ca1441ac3ec8d2aa8e972abc493984af1a4cc16fe2b17c866ec3954e84 8.2.32 \
+            2>&1 | tee validation/baseline-runtime.log
           bash knowledge-wiki/verify-runtime-image.sh "$RUNTIME_IMAGE" \
             2>&1 | tee validation/runtime.log
       - name: Publish the verified image
