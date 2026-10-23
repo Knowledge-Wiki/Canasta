@@ -11,40 +11,8 @@ php -v
 php-fpm8.2 -v
 php-fpm8.2 -t
 apachectl -t
-mkdir -p "$MW_HOME/user-extensions" "$MW_HOME/user-skins" "$MW_VOLUME/config"
-/create-symlinks.sh
-lock_before=$(sha256sum "$MW_HOME/composer.lock")
-packages_before=$(sha256sum "$MW_HOME/vendor/composer/installed.json")
-/opt/canasta-runtime/prepare-composer.sh
-test "$lock_before" = "$(sha256sum "$MW_HOME/composer.lock")"
-test "$packages_before" = "$(sha256sum "$MW_HOME/vendor/composer/installed.json")"
 composer --working-dir="$MW_HOME" check-platform-reqs --no-dev
-printf 'PASS offline autoload preparation preserves locked package versions\n'
-
-# A changed mounted merge configuration must fail before application startup.
-printf '{"require":{"unexpected/package":"*"}}\n' > "$MW_VOLUME/config/composer.local.json"
-if php /opt/canasta-runtime/verify-composer.php > /tmp/guard.log 2>&1; then
-  echo 'Dependency drift was incorrectly accepted' >&2
-  exit 1
-fi
-grep -q 'mounted Composer configuration differs' /tmp/guard.log
-rm "$MW_VOLUME/config/composer.local.json"
-printf 'PASS unreviewed mounted dependencies are rejected\n'
-
-# Changing an extension dependency manifest must also fail.
-cp "$MW_HOME/extensions/OpenIDConnect/composer.json" /tmp/oidc-composer.json
-printf '\n' >> "$MW_HOME/extensions/OpenIDConnect/composer.json"
-if php /opt/canasta-runtime/verify-composer.php > /tmp/guard.log 2>&1; then
-  echo 'Extension dependency drift was incorrectly accepted' >&2
-  exit 1
-fi
-grep -q 'OpenIDConnect/composer.json' /tmp/guard.log
-cp /tmp/oidc-composer.json "$MW_HOME/extensions/OpenIDConnect/composer.json"
-php /opt/canasta-runtime/verify-composer.php
-printf 'PASS unreviewed extension dependencies are rejected\n'
-
-test "$MW_AUTOUPDATE" = false
-test "$MW_ENABLE_JOB_RUNNER" = false
+test ! -e /opt/canasta-runtime
 mkdir -p /run/php
 cat > /var/www/mediawiki/canasta-php-check.php <<'PHP'
 <?php

@@ -8,12 +8,14 @@ on:
       - .github/workflows/knowledge-wiki-runtime.yml
       - knowledge-wiki/php-runtime/**
       - knowledge-wiki/verify-runtime-image.sh
+      - knowledge-wiki/verify-php-scope.py
   pull_request:
     branches: [knowledge-wiki]
     paths:
       - .github/workflows/knowledge-wiki-runtime.yml
       - knowledge-wiki/php-runtime/**
       - knowledge-wiki/verify-runtime-image.sh
+      - knowledge-wiki/verify-php-scope.py
 
 permissions:
   contents: read
@@ -48,7 +50,13 @@ jobs:
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --label "org.opencontainers.image.title=Knowledge-Wiki Canasta PHP patch" \
             knowledge-wiki/php-runtime 2>&1 | tee validation/build.log
-      - name: Verify PHP, web requests and dependency guards offline
+      - name: Compare with the previously deployed PROD and TEST image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 knowledge-wiki/verify-php-scope.py "$RUNTIME_IMAGE" validation/php-scope.json \
+            2>&1 | tee validation/php-scope.log
+      - name: Verify PHP and web requests offline
         shell: bash
         run: |
           set -euo pipefail

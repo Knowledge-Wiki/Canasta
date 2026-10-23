@@ -23,15 +23,11 @@ flowchart LR
 - This retains Canasta 3.5.20, MediaWiki 1.43.9 and the parent's existing root
   libraries. It upgrades the installed Debian PHP 8.2 packages from 8.2.32 to
   `8.2.35-1~deb12u1`. This release supports Linux AMD64 only.
-- Startup validates the reviewed Composer inputs and refreshes autoload files
-  without resolving or downloading packages. Dependency changes fail startup.
-  The pinned SemanticResultFormats 5.2.0 source at
-  `a2682d7841c442e82533360fd0f35e2b40c17d68` is accepted when mounted because its
-  runtime dependency definitions match the bundled source.
-- Automatic database maintenance and the container's internal job runner are
-  disabled by default. Deployments control maintenance and scheduled jobs.
-- The helper used by both web startup and external jobs is
-  `/opt/canasta-runtime/prepare-composer.sh`.
+- The correction is a PHP-package-only layer over that deployed image. It does
+  not change Canasta startup scripts, Composer behavior, application/extension
+  files, maintenance flags or the internal job-runner defaults.
+- The earlier `b158a4f9...` image included unrelated startup/dependency changes.
+  It is superseded and must not be used as the baseline for this PHP-only release.
 
 The upstream root Dockerfile and extension inventory are retained for tracking
 upstream. The release described here is built with `knowledge-wiki/php-runtime`;
@@ -45,12 +41,18 @@ On an AMD64 Docker host:
 
 ```sh
 docker build --platform linux/amd64 -t knowledge-wiki-canasta:php8.2.35 knowledge-wiki/php-runtime
+python3 knowledge-wiki/verify-php-scope.py knowledge-wiki-canasta:php8.2.35
 bash knowledge-wiki/verify-runtime-image.sh knowledge-wiki-canasta:php8.2.35
 ```
 
 The `Build Knowledge-Wiki Canasta` workflow builds and tests on native AMD64.
-It verifies CLI and FPM versions, configuration syntax, locked dependency
-preservation, rejected dependency drift, and a real Apache/PHP-FPM web request.
+It compares the full filesystem, installed packages and runtime image settings
+with the exact previously deployed AMD64 image. Only the installed PHP 8.2
+packages and necessary package-manager bookkeeping may differ; application
+files, startup scripts and runtime settings must match. This comparison runs in
+CI, is not included in the image, and imposes no new checks during wiki startup.
+It also verifies CLI/FPM versions, configuration syntax, existing library platform
+requirements and a real Apache/PHP-FPM web request.
 Only the `knowledge-wiki` branch publishes an image. Pull requests only build
 and test. The original upstream publishing and issue-creation workflows are
 restricted to the upstream repository.
@@ -81,7 +83,7 @@ the public image do not need registry credentials.
 
 Keep upstream changes reviewable through an `upstream` remote. For each update,
 review the upstream source and base image, choose immutable image references,
-update the PHP package version and reviewed dependency inputs, and run the
+update the PHP package version, and run the
 runtime checks. Then run the consuming deployment's compatibility checks and
 staged TEST rollout before promoting its digest. This repository never deploys
 to a cluster automatically.
