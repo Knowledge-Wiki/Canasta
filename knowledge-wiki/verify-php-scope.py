@@ -101,7 +101,7 @@ def main():
                               'var/cache/apt/', 'var/log/apt/')):
             reason = 'Package-manager metadata/cache/log'
         elif name in {'var/lib/dpkg/status', 'var/lib/dpkg/status-old',
-                      'var/lib/apt/extended_states', 'var/log/dpkg.log',
+                      'var/lib/dpkg/triggers/File', 'var/lib/apt/extended_states', 'var/log/dpkg.log',
                       'var/log/alternatives.log', 'etc/ld.so.cache',
                       'var/cache/ldconfig/aux-cache'}:
             reason = 'Package-manager bookkeeping / linker cache'

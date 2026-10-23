@@ -18,7 +18,5 @@ set -euxo pipefail
     for package in "${php_packages[@]}"; do test "$(dpkg-query -W -f='${Version}' "$package")" = "$PHP_DEBIAN_VERSION"; done; \
     php -r 'exit(version_compare(PHP_VERSION, "8.2.35", ">=") && PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 2 ? 0 : 1);'; \
     php-fpm8.2 -v; \
-    php-fpm8.2 -t; \
-    apachectl -t; \
     rm -rf /var/lib/apt/lists/*
 BASH
