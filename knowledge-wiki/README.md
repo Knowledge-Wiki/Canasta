@@ -26,6 +26,8 @@ flowchart LR
 - The correction is a PHP-package-only layer over that deployed image. It does
   not change Canasta startup scripts, Composer behavior, application/extension
   files, maintenance flags or the internal job-runner defaults.
+  The original startup can refresh Composer libraries and run MediaWiki maintenance;
+  these existing behaviors are retained.
 - The earlier `b158a4f9...` image included unrelated startup/dependency changes.
   It is superseded and must not be used as the baseline for this PHP-only release.
 
