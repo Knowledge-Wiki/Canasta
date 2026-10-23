@@ -32,7 +32,7 @@ jobs:
   #   (plus <CANASTA_VERSION> when VERSION file changes)
   push:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.version == '')
+    if: github.repository == 'CanastaWiki/Canasta' && (github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.version == ''))
     permissions:
       artifact-metadata: write
       attestations: write
@@ -270,7 +270,7 @@ jobs:
 
   recover-attestation:
     name: Recover release SBOM attestations
-    if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+    if: github.repository == 'CanastaWiki/Canasta' && github.event_name == 'workflow_dispatch' && inputs.version != ''
     runs-on: ubuntu-latest
     permissions:
       attestations: write

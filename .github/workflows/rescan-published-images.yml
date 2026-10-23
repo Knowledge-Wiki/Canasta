@@ -21,6 +21,7 @@ env:
 
 jobs:
   scan:
+    if: github.repository == 'CanastaWiki/Canasta'
     name: Scan published tags
     runs-on: ubuntu-latest
     timeout-minutes: 60

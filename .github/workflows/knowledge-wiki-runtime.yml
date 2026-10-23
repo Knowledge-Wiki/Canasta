@@ -1,0 +1,99 @@
+name: Build Knowledge-Wiki Canasta
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [knowledge-wiki]
+    paths:
+      - .github/workflows/knowledge-wiki-runtime.yml
+      - knowledge-wiki/php-runtime/**
+      - knowledge-wiki/verify-runtime-image.sh
+  pull_request:
+    branches: [knowledge-wiki]
+    paths:
+      - .github/workflows/knowledge-wiki-runtime.yml
+      - knowledge-wiki/php-runtime/**
+      - knowledge-wiki/verify-runtime-image.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowledge-wiki-runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'Knowledge-Wiki/Canasta'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the pinned AMD64 PHP patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:3.5.20-php8.2.35-${GITHUB_SHA}"
+          echo "RUNTIME_IMAGE=$image" >> "$GITHUB_ENV"
+          mkdir -p validation
+          docker build --platform linux/amd64 --tag "$image" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.title=Knowledge-Wiki Canasta PHP patch" \
+            knowledge-wiki/php-runtime 2>&1 | tee validation/build.log
+      - name: Verify PHP, web requests and dependency guards offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash knowledge-wiki/verify-runtime-image.sh "$RUNTIME_IMAGE" \
+            2>&1 | tee validation/runtime.log
+      - name: Publish the verified image
+        id: publish
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/knowledge-wiki'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$RUNTIME_IMAGE" 2>&1 | tee validation/push.log
+          image=$(docker image inspect "$RUNTIME_IMAGE" --format '{{index .RepoDigests 0}}')
+          printf '%s\n' "$image" > validation/image-digest.txt
+          printf 'image=%s\n' "$image" >> "$GITHUB_OUTPUT"
+          printf 'Built and verified image: `%s`\n\nPublic download is checked separately before deployment.\n' "$image" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: canasta-runtime-validation
+          path: validation/
+          retention-days: 30
+
+  public-download:
+    name: Verify download without registry credentials
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/knowledge-wiki'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Pull the published digest with an empty Docker configuration
+        shell: bash
+        env:
+          RUNTIME_IMAGE: ${{ needs.build.outputs.image }}
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
+          mkdir -p "$DOCKER_CONFIG"
+          if ! docker pull --platform linux/amd64 "$RUNTIME_IMAGE"; then
+            echo '::error::The image must be publicly downloadable before deployment. For a newly created package, an organization owner must set canasta package visibility to Public in GitHub package settings. Then rerun this failed job.'
+            exit 1
+          fi
+          printf 'PASS anonymous download: `%s`\n' "$RUNTIME_IMAGE" >> "$GITHUB_STEP_SUMMARY"
