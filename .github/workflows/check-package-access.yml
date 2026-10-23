@@ -1,0 +1,21 @@
+name: Check container package access
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: read
+
+jobs:
+  inspect:
+    if: github.repository == 'Knowledge-Wiki/Canasta'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report package visibility
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api /orgs/Knowledge-Wiki/packages/container/canasta \
+            --jq '{name, visibility, html_url, repository: .repository.full_name}' \
+            | tee "$GITHUB_STEP_SUMMARY"
